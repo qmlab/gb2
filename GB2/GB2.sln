@@ -3,7 +3,7 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio 2013
 VisualStudioVersion = 12.0.21005.1
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GB2", "GB2.csproj", "{C697C489-E773-47AD-BB99-2E4FA5A0DC12}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GB2Downloader", "GB2Downloader.csproj", "{C697C489-E773-47AD-BB99-2E4FA5A0DC12}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
