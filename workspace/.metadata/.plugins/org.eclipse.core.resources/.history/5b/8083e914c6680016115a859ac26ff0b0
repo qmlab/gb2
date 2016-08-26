@@ -1,0 +1,23 @@
+package gb2.analytics.engine
+
+import scala.collection.immutable.IndexedSeq
+import scala.collection.mutable._
+
+class PoissonComputer(val mean:Double){
+  val e = 2.71828
+  val max = 16
+    def execute():ListBuffer[Double] = {
+      val probs = new ListBuffer[Double]()
+      
+      probs
+    }
+  
+  def factorial(k:Int):Double = {
+    if (k <= 0) {
+      1
+    }
+    else {
+      k * factorial(k - 1)
+    }
+  }
+}

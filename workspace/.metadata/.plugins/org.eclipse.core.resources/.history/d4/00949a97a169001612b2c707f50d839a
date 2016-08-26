@@ -1,0 +1,197 @@
+package gb2.analytics.engine
+
+import gb2.analytics.models
+
+import scala.collection.immutable.IndexedSeq
+import scala.collection.mutable._
+
+import play.api.libs.json._
+
+// Imports core, which grabs everything including Query DSL
+import com.mongodb.casbah.Imports._
+// Imports just the Query DSL along with Commons and its dependencies
+//import com.mongodb.casbah.query.Imports._
+
+import gb2.analytics.dbhelper.Helpers._
+
+// Imports Joda time
+import com.github.nscala_time.time.Imports._
+import gb2.analytics.models.ConstantRegressionModel
+
+class PowerComputer(val league: MongoCollection, val division: String, val dist: Array[Double]) {
+  val windowDays = dist.length
+  val matches = league.find(MongoDBObject("Div" -> division, "FTHG" -> MongoDBObject("$exists" -> true), "FTAG" -> MongoDBObject("$exists" -> true)), MongoDBObject("_id" -> 1, "Div" -> 1, "Date" -> 1, "HomeTeam" -> 1, "AwayTeam" -> 1, "FTHG" -> 1, "FTAG" -> 1)).sort(MongoDBObject("Date" -> 1)).toList
+  val homeTeams = league.distinct("HomeTeam", MongoDBObject("Div" -> division)).toList
+  val awayTeams = league.distinct("AwayTeam", MongoDBObject("Div" -> division)).toList
+  val homeTeamMatchDays = obtainTeamMatchDayAndResult("HomeTeam", homeTeams, matches)
+  val awayTeamMatchDays = obtainTeamMatchDayAndResult("AwayTeam", awayTeams, matches)
+  val matchDaysAndResults = obtainMatchDayAndResult(matches)
+
+  var homeTeamAttackPower = Map[String, Map[DateTime, Double]]()
+  var homeTeamDefensePower = Map[String, Map[DateTime, Double]]()
+  var awayTeamAttackPower = Map[String, Map[DateTime, Double]]()
+  var awayTeamDefensePower = Map[String, Map[DateTime, Double]]()
+  var weightedHomeGoals = Map[DateTime, Double]()
+  var weightedAwayGoals = Map[DateTime, Double]()
+
+  def convertDBListToJson(list: List[Any]) = {
+    
+  }
+  
+  def execute() = {
+    // Obtain weighted total home and away goals
+    for (date <- matchDaysAndResults.keys) {
+      val currentDay = new DateTime(date)
+
+      // compute weighted total scores
+      initializeWeightedTotalGoals(currentDay)
+
+      // compute home team strength at currentDay
+      homeTeams.foreach { x =>
+        {
+          val team = x.asInstanceOf[String]
+          computePower(team, "H", currentDay, homeTeamMatchDays, homeTeamAttackPower, homeTeamDefensePower)
+        }
+      }
+
+      // compute away team strength at currentDay
+      awayTeams.foreach { x =>
+        {
+          val team = x.asInstanceOf[String]
+          computePower(team, "A", currentDay, awayTeamMatchDays, awayTeamAttackPower, awayTeamDefensePower)
+        }
+      }
+    }
+  }
+
+  def initializeWeightedTotalGoals(currentDay: DateTime) = {
+    var weights = new ListBuffer[Double]()
+    var home = new ListBuffer[Double]()
+    var away = new ListBuffer[Double]()
+    var totalWeight = 0d
+    var weightedHomeGoalsAtCurrentDay = 0d
+    var weightedAwayGoalsAtCurrentDay = 0d
+    for (date2 <- matchDaysAndResults.keys) {
+      val d = new DateTime(date2)
+      matchDaysAndResults(d).foreach { m =>
+        {
+          if (d < currentDay) {
+            val interval = (d to currentDay).toDuration().days
+            if (interval > 0 && interval <= windowDays) {
+              val diff = (windowDays - interval).asInstanceOf[Int]
+              weights += dist(diff)
+              totalWeight += dist(diff)
+              println(s"FTHG=${(m \ ("_id")).toString()}")
+              home += (m \\ "FTHG").toString().toDouble
+              away += (m \\ "FTAG").toString().toDouble
+            }
+          }
+        }
+      }
+    }
+
+    // Compute total home match weighted scores
+    for (i <- 0 until weights.length) {
+      weights(i) /= totalWeight
+      home(i) *= weights(i)
+      away(i) *= weights(i)
+      weightedHomeGoalsAtCurrentDay += home(i)
+      weightedAwayGoalsAtCurrentDay += away(i)
+    }
+
+    // compute weighted home and away goals at currentDay
+    weightedHomeGoals(currentDay) = weightedHomeGoalsAtCurrentDay
+    weightedAwayGoals(currentDay) = weightedAwayGoalsAtCurrentDay
+    currentDay
+  }
+
+  def computePower(
+    team: String,
+    teamCategory: String,
+    currentDay: DateTime,
+    matchAndDays: collection.mutable.Map[String, Map[DateTime, JsValue]],
+    attackPower: Map[String, Map[DateTime, Double]],
+    defensePower: Map[String, Map[DateTime, Double]]) = {
+    // Optimization: only do this when the the team has a match on the currentday
+    if (matchAndDays(team).contains(currentDay)) {
+      // 1.Compute all match weighted scores
+      var weights = new ListBuffer[Double]()
+      var goals = new ListBuffer[Double]()
+      var conceded = new ListBuffer[Double]()
+      var totalWeight = 0d
+      var weightedGoals = 0d
+      var weightedConceded = 0d
+      for ((d, m) <- matchAndDays(team)) {
+        if (d < currentDay) {
+          val interval = (d to currentDay).toDuration().days
+          if (interval > 0 && interval <= windowDays) {
+            val diff = (windowDays - interval).asInstanceOf[Int]
+            weights += dist(diff)
+            totalWeight += dist(diff)
+            if ("H" == teamCategory) {
+              goals += (m \\ "FTHG").toString().toDouble
+              conceded += (m \\ "FTAG").toString().toDouble
+            } else {
+              goals += (m \\ "FTAG").toString().toDouble
+              conceded += (m \\ "FTHG").toString().toDouble
+            }
+          }
+        }
+      }
+
+      // 2.Compute team's match weighted scores
+      for (i <- 0 until weights.length) {
+        weights(i) /= totalWeight
+        goals(i) *= weights(i)
+        conceded(i) *= weights(i)
+        weightedGoals += goals(i)
+        weightedConceded += conceded(i)
+      }
+
+      if (!attackPower.contains(team)) {
+        attackPower(team) = Map[DateTime, Double]()
+      }
+      if (!defensePower.contains(team)) {
+        defensePower(team) = Map[DateTime, Double]()
+      }
+
+      attackPower(team)(currentDay) = weightedGoals
+      defensePower(team)(currentDay) = weightedConceded
+    }
+  }
+
+  def obtainTeamMatchDayAndResult(teamCategory: String, teams: List[Any], allMatches: List[DBObject]): collection.mutable.Map[String, Map[DateTime, JsValue]] = {
+    var teamMatchDayAndResult = collection.mutable.Map[String, Map[DateTime, JsValue]]()
+    teams.foreach { x =>
+      {
+        val team = x.asInstanceOf[String]
+        teamMatchDayAndResult(team) = Map[DateTime, play.api.libs.json.JsValue]()
+        allMatches.foreach { m =>
+          {
+            val d = new DateTime(m("Date"))
+            if (m.contains(teamCategory) && m(teamCategory) == team && !teamMatchDayAndResult(team).contains(d)) {
+              teamMatchDayAndResult(team)(d) = Json.toJson(m.toString())
+            }
+          }
+        }
+      }
+    }
+
+    teamMatchDayAndResult
+  }
+
+  def obtainMatchDayAndResult(allMatches: List[DBObject]): collection.mutable.Map[DateTime, ListBuffer[JsValue]] = {
+    var matchDayAndResult = collection.mutable.Map[DateTime, ListBuffer[JsValue]]()
+    allMatches.foreach { m =>
+      {
+        val d = new DateTime(m("Date"))
+        if (!matchDayAndResult.contains(d)) {
+          matchDayAndResult(d) = new ListBuffer[JsValue]()
+        }
+        matchDayAndResult(d) += Json.toJson(m.toString())
+      }
+    }
+
+    matchDayAndResult
+  }
+}

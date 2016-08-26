@@ -1,0 +1,53 @@
+eclipse
+help
+build
+reload
+eclipse
+reload
+eclipse
+reload
+eclipse
+reload
+eclipse
+help
+sbt update
+update
+scala-version
+update
+eclipse
+version
+sbt-version
+update
+eclipse
+update
+scala-version
+eclipse
+update
+eclipse
+    val allMatchesQuery = com.mongodb.casbah.query.Imports.MongoDBObject()
+    val allMatches = div find allMatchesQuery
+    val teams = div.distinct("HomeTeam", allMatchesQuery)
+    val matchDays = allMatches.sort(MongoDBObject("Date" -> -1)).map { x => x("Date") }    val allMatches = div.find(MongoDBObject()).sort(MongoDBObject("Date" -> -1))
+update
+eclipse
+exit
+scala-version
+exit
+update
+sbt update
+exit
+update
+exit
+update
+eclipse
+reload
+update
+eclipse
+update
+eclipse
+reload
+eclipse
+exit
+reload
+eclipse
+exit

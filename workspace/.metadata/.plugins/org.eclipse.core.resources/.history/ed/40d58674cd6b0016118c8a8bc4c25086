@@ -1,0 +1,6 @@
+eclipse.preferences.version=1
+formatter.useProjectSpecificSettings=true
+scala.compiler.additionalParams=
+scala.compiler.installation=-1909281241
+scala.compiler.sourceLevel=2.11
+scala.compiler.useProjectSettings=true

@@ -1,0 +1,6 @@
+package gb2.analytics.engine
+import scala.collection.mutable._
+
+class RateComputer(val homeScoreProbs:ListBuffer[Double], val awayScoreProbs:ListBuffer[Double]) {
+  
+}

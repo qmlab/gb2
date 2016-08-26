@@ -1,0 +1,11 @@
+package gb2.analytics.engine
+
+import scala.collection.immutable.IndexedSeq
+import scala.collection.mutable._
+
+class PoissonComputer(val expectation:Double){
+    def execute():ListBuffer[Double] = {
+      val probs = new ListBuffer[Double]()
+      probs
+    }
+}

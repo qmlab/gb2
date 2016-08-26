@@ -1,0 +1,30 @@
+package gb2.analytics.tests
+import org.scalatest.junit.AssertionsForJUnit
+import org.junit.Assert._
+import org.junit._
+import gb2.analytics.models._
+import gb2.analytics.engine._
+import com.mongodb.casbah.Imports._
+
+class EngineTests {
+  @Test def testPowerComputer() {
+    val totalDays = 10000
+    val windowDays = 1000
+    val mongoClient = MongoClient()
+    val divName = "E"
+    val div = mongoClient("gb2data")(divName)
+    val model = new ConstantRegressionModel
+    var dist = (new ConstantRegressionModel).distribution(1000)
+
+    val computer: PowerComputer = new PowerComputer(div, dist);
+    computer.execute()
+  }
+
+  @Test def testPoissonComputer() {
+    val mean = 1.429
+    val computer: PoissonComputer = new PoissonComputer(mean)
+    val dist = computer.getDistribution()
+
+    assertEquals("Different between 0.2395 and ${dist(0)}", 0.2395, dist(0), 0)
+  }
+}

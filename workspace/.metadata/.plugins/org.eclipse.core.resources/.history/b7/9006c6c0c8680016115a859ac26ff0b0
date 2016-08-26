@@ -1,0 +1,5 @@
+package gb2.analytics.engine
+
+class RateComputer(val homeScoreProbs:ListBuffer[Double], val awayScoreProbs:ListBuffer[Double]) {
+  
+}

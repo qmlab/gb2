@@ -1,0 +1,129 @@
+package gb2.analytics.estimater;
+import gb2.analytics.models._
+import gb2.analytics.engine._
+
+import scala.collection.immutable.IndexedSeq
+import scala.collection.mutable._
+import com.mongodb.BulkWriteUpsert
+
+// Imports core, which grabs everything including Query DSL
+import com.mongodb.casbah.Imports._
+// Imports just the Query DSL along with Commons and its dependencies
+//import com.mongodb.casbah.query.Imports._
+
+import gb2.analytics.dbhelper.Helpers._
+
+// Imports Joda time
+import com.github.nscala_time.time.Imports._
+import gb2.analytics.models.ConstantRegressionModel
+import com.mongodb.casbah.WriteConcern
+
+object Program {
+
+  def main(args: Array[String]) { // Connect to default - localhost, 27017
+    val mongoClient = MongoClient()
+    val divs: Seq[String] = Seq("B", "D", "E", "F", "G", "I", "N", "P", "SC", "SP")
+
+    var windowDays = 730
+    var modelC = new ConstantRegressionModel
+    divs.foreach { divName =>
+      processOneDiv(mongoClient, divName, windowDays, modelC, s"C${windowDays}")
+    }
+
+//    windowDays = 1095
+//    divs.foreach { divName =>
+//      processOneDiv(mongoClient, divName, windowDays, modelC, s"C${windowDays}")
+//    }
+
+    windowDays = 1460
+    divs.foreach { divName =>
+      processOneDiv(mongoClient, divName, windowDays, modelC, s"C${windowDays}")
+    }
+
+    windowDays = 1460
+    var slope = 1d
+    var modelL = new LinearRegressionModel(slope)
+    divs.foreach { divName =>
+      processOneDiv(mongoClient, divName, windowDays, modelL, s"L${windowDays}-${slope.toString().replace('.', '_')}")
+    }
+
+    windowDays = 1460
+    slope = 0.5d
+    modelL = new LinearRegressionModel(slope)
+    divs.foreach { divName =>
+      processOneDiv(mongoClient, divName, windowDays, modelL, s"L${windowDays}-${slope.toString().replace('.', '_')}")
+    }
+
+    windowDays = 1460
+    var coefficient = 1d
+    var exponent = 0.5d
+    var modelE = new ExponentRegressionModel(coefficient, exponent)
+    divs.foreach { divName =>
+      processOneDiv(mongoClient, divName, windowDays, modelE, s"E${windowDays}-${coefficient.toString().replace('.', '_')}-${exponent.toString().replace('.', '_')}")
+    }
+
+    windowDays = 1460
+    coefficient = 1d
+    exponent = -0.5d
+    modelE = new ExponentRegressionModel(coefficient, exponent)
+    divs.foreach { divName =>
+      processOneDiv(mongoClient, divName, windowDays, modelE, s"E${windowDays}-${coefficient.toString().replace('.', '_')}-${exponent.toString().replace('.', '_')}")
+    }
+  }
+
+  def processOneDiv(mongoClient: MongoClient, divName: String, windowDays: Int, model: RegressionModel, tag: String) = {
+    val div = mongoClient("gb2data")(divName)
+    val dist = model.distribution(windowDays)
+    val builder: BulkWriteOperation = div.initializeOrderedBulkOperation
+
+    val powerComputer: PowerComputer = new PowerComputer(div, dist);
+    powerComputer.execute()
+
+    val matches = div.find(MongoDBObject()).sort(MongoDBObject("Date" -> 1)).toList
+    // Compute match prediction for the date
+    matches.foreach { m =>
+      {
+        if (m.contains("Date") &&
+          m.contains("HomeTeam") &&
+          m.contains("AwayTeam")) {
+          val date = new DateTime(m("Date"))
+          val home = m("HomeTeam").asInstanceOf[String]
+          val away = m("AwayTeam").asInstanceOf[String]
+          val homeAttackStrength = powerComputer.homeTeamAttackPower(home)(date)
+          val homeDefenseStrength = powerComputer.homeTeamDefensePower(home)(date)
+          val awayAttackStrength = powerComputer.awayTeamAttackPower(away)(date)
+          val awayDefenseStrength = powerComputer.awayTeamDefensePower(away)(date)
+          if (homeAttackStrength != 0 &&
+            homeDefenseStrength != 0 &&
+            awayAttackStrength != 0 &&
+            awayDefenseStrength != 0) {
+            val weightedHome = powerComputer.weightedHomeGoals(date)
+            val weightedAway = powerComputer.weightedAwayGoals(date)
+            val homeExpectation = homeAttackStrength * awayDefenseStrength / weightedHome
+            val awayExpectation = awayAttackStrength * homeDefenseStrength / weightedAway
+            val poissonComputerHome: PoissonComputer = new PoissonComputer(homeExpectation)
+            val poissonComputerAway: PoissonComputer = new PoissonComputer(awayExpectation)
+            val rateComputer: RateComputer = new RateComputer(poissonComputerHome.getDistribution(), poissonComputerAway.getDistribution())
+            rateComputer.execute()
+
+            val winOdds = rateComputer.getHomeWinOdds()
+            val loseOdds = rateComputer.getAwayWinOdds()
+            val drawOdds = rateComputer.getDrawOdds()
+            if (winOdds > 1 &&
+              loseOdds > 1 &&
+              drawOdds > 1) {
+              builder.find(MongoDBObject("_id" -> m("_id"))).upsert().updateOne($set(s"Q${tag}H" -> winOdds))
+              builder.find(MongoDBObject("_id" -> m("_id"))).upsert().updateOne($set(s"Q${tag}D" -> drawOdds))
+              builder.find(MongoDBObject("_id" -> m("_id"))).upsert().updateOne($set(s"Q${tag}A" -> loseOdds))
+//              println(s"Date:$date\tHome:$home\tAway:$away\thomeAtt:$homeAttackStrength\thomeDef:$homeDefenseStrength\tawayAtt:$awayAttackStrength\tawayDef:$awayDefenseStrength\thomeTotal:$weightedHome\tawayTotal:$weightedAway\tExpectations:$homeExpectation:$awayExpectation\tWin:$winOdds\tLose:$loseOdds\tDraw:$drawOdds")
+            }
+          }
+        }
+      }
+    }
+
+    builder.execute()
+
+    println(s"Completed Division $divName for Tag ${tag}")
+  }
+}
