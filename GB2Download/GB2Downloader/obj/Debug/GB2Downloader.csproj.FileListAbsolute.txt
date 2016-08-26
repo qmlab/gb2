@@ -1,0 +1,6 @@
+C:\developer\gb2\GB2\bin\Debug\GB2.exe.config
+C:\developer\gb2\GB2\obj\Debug\GB2.exe
+C:\developer\gb2\GB2\obj\Debug\GB2.pdb
+C:\developer\gb2\GB2\GB2Downloader\bin\Debug\GB2.exe.config
+C:\developer\gb2\GB2\GB2Downloader\obj\Debug\GB2.exe
+C:\developer\gb2\GB2\GB2Downloader\obj\Debug\GB2.pdb

@@ -1,0 +1,11 @@
+start cmd /c node Load.js ..\downloads B
+start cmd /c node Load.js ..\downloads D
+start cmd /c node Load.js ..\downloads E
+start cmd /c node Load.js ..\downloads F
+start cmd /c node Load.js ..\downloads G
+start cmd /c node Load.js ..\downloads I
+start cmd /c node Load.js ..\downloads N
+start cmd /c node Load.js ..\downloads P
+start cmd /c node Load.js ..\downloads SC
+start cmd /c node Load.js ..\downloads SP 
+start cmd /c node Load.js ..\downloads T
