@@ -35,53 +35,32 @@ object Program {
       "SP1", "SP2",
       "T1")
 
-    var windowDays = 730
+    var windowDays = 1800
     var modelC = new ConstantRegressionModel
     //    divs.foreach { divName =>
     //      processOneDiv(mongoClient, divName, windowDays, modelC, s"C${windowDays}")
     //    }
 
-    //    windowDays = 1095
-    //    divs.foreach { divName =>
-    //      val league = divName(0).toString()
-    //      processOneDiv(mongoClient, divName, windowDays, modelC, s"C${windowDays}")
-    //    }
-
-    //    windowDays = 1460
-    //    divs.foreach { divName =>
-    //      val league = divName(0).toString()
-    //      processOneDiv(mongoClient, divName, windowDays, modelC, s"C${windowDays}")
-    //    }
-
-    windowDays = 1460
+    //    windowDays = 1800
     //    var slope = 1d
     //    var modelL = new LinearRegressionModel(slope)
     //    divs.foreach { divName =>
     //      val league = divName(0).toString()
-    //      processOneDiv(mongoClient, divName, windowDays, modelL, s"L${windowDays}-${slope.toString().replace('.', '_')}")
+    //      processOneDiv(mongoClient, divName, windowDays, modelL, s"L${windowDays}")
     //    }
-
-    //    windowDays = 1460
-    //    var slope = 0.5d
-    //    var modelL = new LinearRegressionModel(slope)
-    //    divs.foreach { divName =>
-    //      processOneDiv(mongoClient, divName, windowDays, modelL, s"L${windowDays}-${slope.toString().replace('.', '_')}")
-    //    }
-
-    windowDays = 1460
-    var coefficient = 1d
-    var exponent = 0.5d
-    var modelE = new ExponentRegressionModel(coefficient, exponent)
+    //
+    //    windowDays = 1800
+    //    var coefficient = 1d
+    //    var exponent = 0.5d
+    //    var modelE = new ExponentRegressionModel(coefficient, exponent)
     //    divs.foreach { divName =>
     //      processOneDiv(mongoClient, divName, windowDays, modelE, s"E${windowDays}-${coefficient.toString().replace('.', '_')}-${exponent.toString().replace('.', '_')}")
     //    }
 
-    windowDays = 1460
-    coefficient = 1d
-    exponent = -0.5d
-    modelE = new ExponentRegressionModel(coefficient, exponent)
+    windowDays = 1800
+    var modelO = new LogarithmicRegressionModel
     divs.foreach { divName =>
-      processOneDiv(mongoClient, divName, windowDays, modelE, s"E${windowDays}-${coefficient.toString().replace('.', '_')}-${exponent.toString().replace('.', '_')}")
+      processOneDiv(mongoClient, divName, windowDays, modelO, s"O${windowDays}")
     }
   }
 
