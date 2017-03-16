@@ -1,1 +1,1 @@
-# gb2
+Simple soccer odds calculation
